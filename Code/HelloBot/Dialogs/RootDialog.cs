@@ -10,6 +10,8 @@ namespace HelloBot.Dialogs
     [Serializable]
     public class RootDialog : IDialog<object>
     {
+        enum TypeReply { Simple = 1, Speak = 2, Spoken = 3, Both = 4 }
+
         public Task StartAsync(IDialogContext context)
         {
             context.Wait(MessageReceivedAsync);
@@ -22,15 +24,29 @@ namespace HelloBot.Dialogs
             var activity = await result as Activity;
 
             var reply = activity.CreateReply();
-            ChooseReply(activity.Text, ref reply);
+            var typeReply = ChooseReply(activity.Text, ref reply);
 
-            await context.PostAsync(reply);
+            if (typeReply == (int) TypeReply.Speak) 
+            {
+                var connector = new ConnectorClient(new Uri(activity.ServiceUrl));
+                await connector.Conversations.SendToConversationAsync(reply);
+            } else if(typeReply == (int) TypeReply.Spoken) 
+            {
+                var connector = new ConnectorClient(new Uri(activity.ServiceUrl));
+                await connector.Conversations.ReplyToActivityAsync(reply);
+            } else if(typeReply == (int) TypeReply.Both) 
+            {
+                await context.SayAsync(speak: reply.Speak, text: reply.Text);
+            } else 
+                await context.PostAsync(reply);
 
             context.Wait(MessageReceivedAsync);
         }
 
-        private void ChooseReply(string text, ref Activity reply)
+        private int ChooseReply(string text, ref Activity reply)
         {
+            int type = -1;
+
             try
             {
                 if (text.ToLower().Contains("color")) // CardAction
@@ -42,12 +58,14 @@ namespace HelloBot.Dialogs
                     reply.SuggestedActions = new SuggestedActions()
                     {
                         Actions = new List<CardAction>()
-                    {
-                        new CardAction(){ Title = "Azul", Type=ActionTypes.ImBack, Value="Azul" },
-                        new CardAction(){ Title = "Rojo", Type=ActionTypes.ImBack, Value="Rojo" },
-                        new CardAction(){ Title = "Verde", Type=ActionTypes.ImBack, Value="Verde" }
-                    }
+                        {
+                            new CardAction(){ Title = "Azul", Type=ActionTypes.ImBack, Value="Azul" },
+                            new CardAction(){ Title = "Rojo", Type=ActionTypes.ImBack, Value="Rojo" },
+                            new CardAction(){ Title = "Verde", Type=ActionTypes.ImBack, Value="Verde" }
+                        }
                     };
+
+                    type = (int)TypeReply.Simple;
                 }
                 else if (text.ToLower().Contains("hambre")) // Carousel: CardImage + CardAction + HeroCard
                 {
@@ -87,6 +105,8 @@ namespace HelloBot.Dialogs
                         Attachment plAttachment = plCard.ToAttachment();
                         reply.Attachments.Add(plAttachment);
                     }
+
+                    type = (int)TypeReply.Simple;
                 } else if(text.ToLower().Contains("anime")) // Thumbnail
                 {
                     reply.Text = "Conozco un par, ¿qué opinas de estas opciones?";
@@ -124,6 +144,8 @@ namespace HelloBot.Dialogs
                         Attachment plAttachment = plCard.ToAttachment();
                         reply.Attachments.Add(plAttachment);
                     }
+
+                    type = (int)TypeReply.Simple;
                 }
                 else if (text.ToLower().Contains("compras")) // Receipt card
                 {
@@ -181,6 +203,8 @@ namespace HelloBot.Dialogs
 
                     Attachment plAttachment = plCard.ToAttachment();
                     reply.Attachments.Add(plAttachment);
+
+                    type = (int)TypeReply.Simple;
                 } else if(text.ToLower().Contains("contactar"))  // Sign-In Card
                 {
                     reply.Text = "Hay que hacer algo antes de eso.";
@@ -201,6 +225,8 @@ namespace HelloBot.Dialogs
 
                     Attachment plAttachment = plCard.ToAttachment();
                     reply.Attachments.Add(plAttachment);
+
+                    type = (int)TypeReply.Simple;
                 } else if(text.ToLower().Contains("cita")) // Adaptative Card
                 {
                     reply.Text = "Veamos, me parece que tienes algo pendiente:";
@@ -274,6 +300,8 @@ namespace HelloBot.Dialogs
                     };
 
                     reply.Attachments.Add(attachment);
+
+                    type = (int)TypeReply.Speak;
                 }
                 else if (text.ToLower().Contains("hello")) // Adaptative Card simple
                 {
@@ -298,15 +326,34 @@ namespace HelloBot.Dialogs
                     };
 
                     reply.Attachments.Add(attachment);
+
+                    type = (int)TypeReply.Simple;
+                } else if(text.ToLower().Contains("hablar")) // Speak que acepta inputs
+                {
+                    reply.Text = "Veamos si puedes escucharme.";
+                    reply.Speak = "¿Ya me escuchas?";
+                    reply.InputHint = InputHints.AcceptingInput;
+
+                    type = (int)TypeReply.Spoken;
+                } else if(text.ToLower().Contains("parlar")) // Speak que dice y escribe lo mismo
+                {
+                    reply.Text = "Esta es una respuesta que puedes leer y escuchar";
+                    reply.Speak = "Esta es una respuesta que puedes leer y escuchar";
+
+                    type = (int)TypeReply.Both;
                 } else // PlainText
                 {
                     int length = (text ?? string.Empty).Length;
                     reply.Text = string.Format("Enviaste \"{0}\" con una longitud de {1}.", text, length);
+                    type = (int)TypeReply.Simple;
                 }
             } catch(Exception ex) 
             {
                 reply.Text = "No entendí tu respuesta, volvamos a intentarlo.";
+                type = (int)TypeReply.Simple;
             }
+
+            return type;
         }
     }
 }
