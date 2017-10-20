@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
 using System.Collections.Generic;
+using AdaptiveCards;
 
 namespace HelloBot.Dialogs
 {
@@ -129,14 +130,14 @@ namespace HelloBot.Dialogs
                     reply.Text = "Vamos de compras, aquí hay algunas opciones, ¿qué opinas?";
                     reply.Attachments = new List<Attachment>();
 
-                    List<CardImage> cardImages = new List<CardImage>();
-                    cardImages.Add(new CardImage(url: "https://<imageUrl1>" ));
+                    //List<CardImage> cardImages = new List<CardImage>();
+                    //cardImages.Add(new CardImage(url: "https://<imageUrl1>" ));
 
                     List<CardAction> cardButtons = new List<CardAction>();
 
                     CardAction plButton = new CardAction()
                     {
-                        Value = "https://en.wikipedia.org/wiki/PigLatin",
+                        Value = "https://es.wikipedia.org/wiki/Pig_Latin",
                         Type = "openUrl",
                         Title = "WikiPedia Page"
                     };
@@ -145,10 +146,10 @@ namespace HelloBot.Dialogs
 
                     ReceiptItem lineItem1 = new ReceiptItem()
                     {
-                        Title = "Pork Shoulder",
+                        Title = "Paleta de Cerdo",
                         Subtitle = "8 lbs",
                         Text = null,
-                        Image = new CardImage(url: "https://<ImageUrl1>"),
+                        Image = new CardImage(url: "https://www.kingsford.com/wp-content/uploads/2014/12/kfd-howtoporkshoulder-PorkShoulder5_0241-1024x621.jpg"),
                         Price = "16.25",
                         Quantity = "1",
                         Tap = null
@@ -156,10 +157,10 @@ namespace HelloBot.Dialogs
 
                     ReceiptItem lineItem2 = new ReceiptItem()
                     {
-                    Title = "Bacon",
+                    Title = "Tocino",
                     Subtitle = "5 lbs",
                     Text = null,
-                    Image = new CardImage(url: "https://<ImageUrl2>"),
+                    Image = new CardImage(url: "http://www.animalgourmet.com/wp-content/uploads/2014/05/tocino.jpg"),
                     Price = "34.50",
                     Quantity = "2",
                     Tap = null
@@ -171,7 +172,7 @@ namespace HelloBot.Dialogs
 
                     ReceiptCard plCard = new ReceiptCard()
                     {
-                        Title = "I'm a receipt card, isn't this bacon expensive?",
+                        Title = "¿No es este tocino muy caro?",
                         Buttons = cardButtons,
                         Items = receiptList,
                         Total = "112.77",
@@ -180,6 +181,123 @@ namespace HelloBot.Dialogs
 
                     Attachment plAttachment = plCard.ToAttachment();
                     reply.Attachments.Add(plAttachment);
+                } else if(text.ToLower().Contains("contactar"))  // Sign-In Card
+                {
+                    reply.Text = "Hay que hacer algo antes de eso.";
+                    reply.Attachments = new List<Attachment>();
+
+                    List<CardAction> cardButtons = new List<CardAction>();
+
+                    CardAction plButton = new CardAction()
+                    {
+                        Value = "https://login.microsoftonline.com/common/federation/oauth2",
+                        Type = "signin",
+                        Title = "Conectar"
+                    };
+
+                    cardButtons.Add(plButton);
+
+                    SigninCard plCard = new SigninCard("Primero necesitas autorizarme.", cardButtons);
+
+                    Attachment plAttachment = plCard.ToAttachment();
+                    reply.Attachments.Add(plAttachment);
+                } else if(text.ToLower().Contains("cita")) // Adaptative Card
+                {
+                    reply.Text = "Veamos, me parece que tienes algo pendiente:";
+                    reply.Attachments = new List<Attachment>();
+
+                    AdaptiveCard card = new AdaptiveCard();
+
+                    // Specify speech for the card.
+                    var hourOfDay = DateTime.Now;
+
+                    card.Speak = string.Concat("<s>Tu reunión sobre \"Adaptive Card design session\"<break strength='weak'/>"
+                        , string.Format("empieza a las {0} ", hourOfDay.ToString("HH:mm"))
+                        , "</s><s>¿Quieres aplazarla <break strength='weak'/> o quieres avisar que llegarás tarde?</s>");
+
+                    // Add text to the card.
+                    card.Body.Add(new TextBlock()
+                    {
+                        Text = "Adaptive Card design session",
+                        Size = TextSize.Large,
+                        Weight = TextWeight.Bolder
+                    });
+
+                    // Add text to the card.
+                    card.Body.Add(new TextBlock()
+                    {
+                        Text = "Conf Room 112/3377 (10)"
+                    });
+
+                    // Add text to the card.
+                    card.Body.Add(new TextBlock()
+                    {
+                        Text = string.Format("{0} - {1}", hourOfDay.ToString("HH:mm"), hourOfDay.AddHours(1).ToString("HH:mm"))
+                    });
+
+                    // Add list of choices to the card.
+                    card.Body.Add(new ChoiceSet()
+                    {
+                        Id = "snooze",
+                        Style = ChoiceInputStyle.Compact,
+                        Choices = new List<Choice>()
+                        {
+                            new Choice() { Title = "5 minutos", Value = "5", IsSelected = true },
+                            new Choice() { Title = "15 minutos", Value = "15" },
+                            new Choice() { Title = "30 minutos", Value = "30" }
+                        }
+                    });
+
+                    // Add buttons to the card.
+                    card.Actions.Add(new ActionBase()
+                    {                        
+                        Title = "Silenciar"
+                    });
+
+                    card.Actions.Add(new HttpAction()
+                    {
+                        Url = "http://foo.com",
+                        Title = "Llegaré Tarde"
+                    });
+
+                    card.Actions.Add(new HttpAction()
+                    {
+                        Url = "http://foo.com",
+                        Title = "Ignorar"
+                    });
+
+                    // Create the attachment.
+                    Attachment attachment = new Attachment()
+                    {
+                        ContentType = AdaptiveCard.ContentType,
+                        Content = card
+                    };
+
+                    reply.Attachments.Add(attachment);
+                }
+                else if (text.ToLower().Contains("hello")) // Adaptative Card simple
+                {
+                    AdaptiveCard card = new AdaptiveCard();
+
+                    card.Body.Add(new TextBlock() 
+                    {
+                        Text = "Hello",
+                        Size = TextSize.ExtraLarge
+                    });
+
+                    card.Body.Add(new Image() 
+                    {
+                        Url = "https://lh6.ggpht.com/LCpP0kIk5XubEwBUhOomMFgees_ALTxUvfDjMfrnwaSxa9Khw50d0Lw0EW7DFs85KXQ=w300"
+                    });
+
+                    // Create the attachment.
+                    Attachment attachment = new Attachment()
+                    {
+                        ContentType = AdaptiveCard.ContentType,
+                        Content = card
+                    };
+
+                    reply.Attachments.Add(attachment);
                 } else // PlainText
                 {
                     int length = (text ?? string.Empty).Length;
