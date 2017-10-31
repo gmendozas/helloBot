@@ -10,7 +10,7 @@ namespace HelloBot.Dialogs
     [Serializable]
     public class RootDialog : IDialog<object>
     {
-        enum TypeReply { Simple = 1, Speak = 2, Spoken = 3, Both = 4 }
+        enum TypeReply { Simple = 1, Speak = 2, Spoken = 3, Both = 4, Expecting = 5 }
 
         public Task StartAsync(IDialogContext context)
         {
@@ -34,7 +34,8 @@ namespace HelloBot.Dialogs
             {
                 var connector = new ConnectorClient(new Uri(activity.ServiceUrl));
                 await connector.Conversations.ReplyToActivityAsync(reply);
-            } else if(typeReply == (int) TypeReply.Both) 
+            }
+            else if (typeReply == (int)TypeReply.Both || typeReply == (int)TypeReply.Expecting) 
             {
                 await context.SayAsync(speak: reply.Speak, text: reply.Text);
             } else 
@@ -341,6 +342,13 @@ namespace HelloBot.Dialogs
                     reply.Speak = "Esta es una respuesta que puedes leer y escuchar";
 
                     type = (int)TypeReply.Both;
+                } else if(text.ToLower().Contains("responder")) 
+                {
+                    reply.Text = "Este texto será mostrado.";
+                    reply.Speak = "Este texto será hablado";
+                    reply.InputHint = InputHints.ExpectingInput;
+
+                    type = (int)TypeReply.Expecting;
                 } else // PlainText
                 {
                     int length = (text ?? string.Empty).Length;
